@@ -198,7 +198,7 @@ def period_delete(period_days):
         next_time = last_deleted + period
         print(f"Not time to delete yet. Next deletion scheduled for: {next_time}")
 
-def solve_recaptcha_2captcha(driver, page_url, logger, api_key="13d10e1bdeea888e3b06b15d73d0877e"):
+def solve_recaptcha_2captcha(driver, page_url, logger, api_key):
     """
     Solve Google reCAPTCHA (enterprise) using 2Captcha and inject token properly.
     Returns True if injection successful, False otherwise.
