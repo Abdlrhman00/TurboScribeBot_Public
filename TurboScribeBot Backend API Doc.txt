@@ -1,0 +1,574 @@
+# 🚀 TurboScribeBot Backend API Documentation
+=====================================
+
+## 📋 Overview
+The TurboScribeBot Backend API provides a RESTful interface for managing audio/video transcription jobs and file operations. It orchestrates Docker containers running the TurboScribeBot automation script.
+
+- - - - - - - - - -
+
+## Health & System Endpoints
+
+ GET /health
+**Description**: Check API service status (Public - no authentication required)
+
+**Response**:
+```json
+{
+  "status": "OK",
+  "service": "TurboScribeBot API",
+  "timestamp": "2024-01-15T10:30:00.000Z"
+}
+```
+
+**Example**:
+```bash
+curl -H "x-api-key":"your-secret-key-123" http://localhost:3000/health
+```
+
+---
+
+## Jobs Management API
+
+ POST /api/jobs
+**Description**: Create a new transcription job with comprehensive validation and permission management
+
+**Headers**:
+- `x-api-key: your-secret-key` (Required)
+- `Content-Type: application/json` (Required)
+
+**Request Body**:
+```json
+{
+  "id": "string (required - unique)",              // Custom job ID
+  "output": "string (optional)",          // Custom output directory path
+  "source": "zoom|onedrive (optional)",   // Source type for Zoom/OneDrive workflow
+  
+  // Source workflow parameters (when using source)
+  "link": "string (optional)",            // Source URL
+  "passcode": "string (optional)",        // Zoom recording passcode
+  "withTranscription": "boolean",         // Auto-transcribe after download
+  
+  // Direct transcription parameters (when no source)
+  "link": "string",                       // YouTube/audio/video URL
+  "file": "string",                       // Local file path
+  "language": "string (required)",        // Transcription language (en, ar, etc.)
+  
+  // Transcription options
+  "model": "base|small|large-v2",         // Model size (default: base)
+  
+  // Feature flags
+  "speakers": "number|boolean",           // Speaker recognition (-1 for auto, number for count)
+  "transcribe": "boolean",                // Enable transcription
+  "restore": "boolean",                   // Restore audio quality
+  "timestamps": "boolean",                // Add timestamps to output
+  "shortSummary": "boolean",              // Generate short summary
+  "detailSummary": "boolean",             // Generate detailed summary
+  "translate": "string",                  // Translate to language code
+  "downloadAudio": "boolean",             // Download original audio file
+  
+  // File permissions (applied after job completion)
+  "owner": "string (optional)",           // Set output directory owner
+  "group": "string (optional)",           // Set output directory group
+  "permissions": "string (optional)"      // Octal permissions (e.g., "755")
+}
+```
+
+**Success Response (201)**:
+```json
+{
+  "jobId": "job-123",
+  "outputPath": "/hamada/TurboScribeBot/outputs/job-123",
+  "status": "created",
+  "message": "Job started successfully",
+  "timestamp": "2024-01-15T10:30:00.000Z",
+  "owner": "www-data",
+  "group": "www-data",
+  "permissions": "755",
+  "permissionsNote": "Permissions will be finalized after job completion"
+}
+```
+
+**Error Responses**:
+- `400` - Validation error
+- `401` - Missing API key
+- `403` - Invalid API key
+- `409` - Job ID already exists
+- `500` - Internal server error
+
+**Examples**:
+
+**Basic YouTube Transcription**:
+```bash
+curl -X POST http://localhost:3000/api/jobs \
+  -H "x-api-key: your-secret-key-123" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "id": "50",
+    "link": "https://youtu.be/weaGPNlSMBE",
+    "language": "ar"
+  }'
+```
+
+**Full Featured YouTube with Permissions**:
+```bash
+curl -X POST http://localhost:3000/api/jobs \
+  -H "Authorization: Bearer your-secret-key-123" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "id": "10",
+    "link": "https://youtube.com/watch?v=lecture123",
+    "language": "en",
+    "model": "large-v2",
+    "speakers": 2,
+    "transcribe": true,
+    "restore": true,
+    "timestamps": true,
+    "shortSummary": true,
+    "detailSummary": true,
+    "downloadAudio": true,
+    "owner": "www-data",
+    "group": "www-data",
+    "permissions": "755"
+  }'
+```
+
+**Zoom Recording**:
+```bash
+curl -X POST http://localhost:3000/api/jobs \
+  -H "x-api-key: your-secret-key-123" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "id": "30",
+    "source": "zoom",
+    "link": "https://zoom.us/rec/play/abc123",
+    "passcode": "123456",
+    "withTranscription": true,
+    "language": "en"
+  }'
+```
+
+**With Query Parameter Auth**:
+```bash
+curl -X POST "http://localhost:3000/api/jobs?apiKey=your-secret-key-123" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "id": "30",
+    "link": "https://youtube.com/watch?v=test",
+    "language": "en"
+  }'
+```
+
+---
+
+ GET /api/jobs
+**Description**: List all jobs in the database
+
+**Headers**:
+- `x-api-key: your-secret-key` (Required)
+
+**Response**:
+```json
+{
+  "jobs": [
+    {
+      "job_id": "job-123",
+      "output_path": "/hamada/TurboScribeBot/outputs/job-123",
+      "created_at": "2024-01-15T10:30:00.000Z"
+    }
+  ],
+  "total": 1,
+  "timestamp": "2024-01-15T10:35:00.000Z"
+}
+```
+
+**Example**:
+```bash
+curl -H "x-api-key: your-secret-key-123" \
+  http://localhost:3000/api/jobs
+```
+
+---
+
+ GET /api/jobs/:jobId
+**Description**: Get job report and status
+
+**Headers**:
+- `x-api-key: your-secret-key` (Required)
+
+**Parameters**:
+- `jobId` - Job identifier (from creation response)
+
+**Success Response**:
+```json
+{
+  "jobId": "job-123",
+  "report": {
+    "job_metadata": {
+      "id": "job-123",
+      "started_at": "2024-01-15T10:30:00.000Z",
+      "finished_at": "2024-01-15T10:35:00.000Z",
+      "source": "https://youtube.com/watch?v=abc123",
+      "title": "Video Title",
+      "status": "done" //failed, processing, done
+    },
+    "options": {
+      "language": "en",
+      "model": "base",
+      "recognize_speakers": 2,
+      "transcribe": true,
+      "timestamps": true
+    },
+    "outputs": {
+      "source": "/path/to/source",
+      "transcription": "/path/to/transcription.txt"
+    },
+    "status_log": []
+  },
+  "reportPath": "/hamada/TurboScribeBot/outputs/job-123/report_job-123.json",
+  "timestamp": "2024-01-15T10:36:00.000Z"
+}
+```
+
+**Error Responses**:
+- `401` - Missing API key
+- `403` - Invalid API key
+- `404` - Job not found
+- `500` - Internal server error
+
+**Example**:
+```bash
+curl -H "x-api-key: your-secret-key-123" \
+  http://localhost:3000/api/jobs/job-123
+```
+
+---
+
+ GET /api/jobs/:jobId/logs
+**Description**: Get job execution logs
+
+**Headers**:
+- `x-api-key: your-secret-key` (Required)
+
+**Query Parameters**:
+- `lines` - Number of lines to return (default: 50)
+- `full` - Return full log if true (overrides lines)
+
+**Success Response**:
+```json
+{
+  "jobId": "job-123",
+  "logs": "[INFO] Starting transcription...\n[INFO] Processing audio...",
+  "totalLines": 150,
+  "fileSize": 2048,
+  "logPath": "/hamada/TurboScribeBot/outputs/job-123/job-123.log",
+  "timestamp": "2024-01-15T10:36:00.000Z"
+}
+```
+
+**Examples**:
+```bash
+# Last 10 lines
+curl -H "x-api-key: your-secret-key-123" \
+  "http://localhost:3000/api/jobs/job-123/logs?lines=10"
+
+# Full log
+curl -H "Authorization: Bearer your-secret-key-123" \
+  "http://localhost:3000/api/jobs/job-123/logs?full=true"
+```
+
+---
+
+ DELETE /api/jobs/:jobId
+**Description**: Delete specific job and its output files
+
+**Headers**:
+- `x-api-key: your-secret-key` (Required)
+
+**Parameters**:
+- `jobId` - Job identifier to delete
+
+**Success Response**:
+```json
+{
+  "jobId": "job-123",
+  "status": "deleted",
+  "message": "Job removed from database and folder deleted",
+  "folderPath": "/hamada/TurboScribeBot/outputs/job-123",
+  "folderDeleted": true,
+  "timestamp": "2024-01-15T10:37:00.000Z"
+}
+```
+
+**Example**:
+```bash
+curl -X DELETE \
+  -H "x-api-key: your-secret-key-123" \
+  http://localhost:3000/api/jobs/job-123
+```
+
+---
+
+ DELETE /api/jobs
+**Description**: Delete ALL jobs but keep directory structure (requires confirmation)
+
+**Headers**:
+- `x-api-key: your-secret-key` (Required)
+
+**Query Parameters**:
+- `confirm=true` - Required confirmation parameter
+
+**Success Response**:
+```json
+{
+  "status": "deleted_all",
+  "message": "All jobs (5) removed from database and 5 job directories cleaned",
+  "jobsDeleted": 5,
+  "foldersCleaned": 5,
+  "folderPath": "/hamada/TurboScribeBot/outputs",
+  "timestamp": "2024-01-15T10:38:00.000Z"
+}
+```
+
+**Error Responses**:
+- `400` - Missing confirmation parameter
+- `401` - Missing API key
+- `403` - Invalid API key
+- `500` - Internal server error
+
+**Example**:
+```bash
+curl -X DELETE \
+  -H "x-api-key: your-secret-key-123" \
+  "http://localhost:3000/api/jobs?confirm=true"
+```
+
+**Warning**: This operation is irreversible and will remove all jobs from the database and clean all job directories while preserving the base output directory structure.
+
+---
+
+## Files Management API
+
+ POST /api/files/copy
+**Description**: Copy files with optional ownership and permissions changes
+
+**Headers**:
+- `x-api-key: your-secret-key` (Required)
+- `Content-Type: application/json` (Required)
+
+**Request Body**:
+```json
+{
+  "sourcePath": "string (required)",      // Source file/directory path
+  "destinationPath": "string (required)", // Destination file/directory path
+  "owner": "string (optional)",           // New owner username
+  "group": "string (optional)",           // New group name
+  "permissions": "string (optional)"      // Octal permissions (e.g., "755")
+}
+```
+
+**Success Response**:
+```json
+{
+  "status": "success",
+  "message": "File copied successfully with ownership changes",
+  "sourcePath": "/tmp/source.txt",
+  "destinationPath": "/tmp/destination.txt",
+  "owner": "www-data",
+  "group": "www-data",
+  "permissions": "644",
+  "size": 1024,
+  "finalStats": "-rw-r--r-- 1 www-data www-data 1024 Jan 15 10:30 /tmp/destination.txt",
+  "timestamp": "2024-01-15T10:30:00.000Z"
+}
+```
+
+**Example**:
+```bash
+curl -X POST http://localhost:3000/api/files/copy \
+  -H "x-api-key: your-secret-key-123" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "sourcePath": "/tmp/source.txt",
+    "destinationPath": "/tmp/dest.txt",
+    "owner": "www-data",
+    "permissions": "644"
+  }'
+```
+
+---
+
+ POST /api/files/chown
+**Description**: Change file/directory ownership and permissions
+
+**Headers**:
+- `x-api-key: your-secret-key` (Required)
+- `Content-Type: application/json` (Required)
+
+**Request Body**:
+```json
+{
+  "path": "string (required)",           // File/directory path
+  "owner": "string (optional)",          // New owner username
+  "group": "string (optional)",          // New group name
+  "permissions": "string (optional)",    // Octal permissions (e.g., "755")
+  "recursive": "boolean (default: true)" // Apply recursively to directories
+}
+```
+
+**Success Response**:
+```json
+{
+  "status": "success",
+  "message": "Changed owner to www-data, permissions to 755 successfully (recursively)",
+  "path": "/var/www/html",
+  "changes": {
+    "owner": "www-data",
+    "group": "unchanged",
+    "permissions": "755"
+  },
+  "recursive": true,
+  "fileInfo": {
+    "isDirectory": true,
+    "size": 4096,
+    "modified": "2024-01-15T10:30:00.000Z",
+    "detailed": "drwxr-xr-x 2 www-data root 4096 Jan 15 10:30 /var/www/html"
+  },
+  "timestamp": "2024-01-15T10:30:00.000Z"
+}
+```
+
+**Examples**:
+```bash
+# Change ownership only
+curl -X POST http://localhost:3000/api/files/chown \
+  -H "x-api-key: your-secret-key-123" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "path": "/var/www/html",
+    "owner": "www-data"
+  }'
+
+# Change both ownership and permissions
+curl -X POST http://localhost:3000/api/files/chown \
+  -H "Authorization: Bearer your-secret-key-123" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "path": "/var/www/html",
+    "owner": "www-data",
+    "permissions": "755",
+    "recursive": true
+  }'
+```
+
+---
+
+ POST /api/files/move
+**Description**: Move files with optional ownership and permissions changes
+
+**Headers**:
+- `x-api-key: your-secret-key` (Required)
+- `Content-Type: application/json` (Required)
+
+**Request Body**:
+```json
+{
+  "sourcePath": "string (required)",      // Source file/directory path
+  "destinationPath": "string (required)", // Destination file/directory path
+  "owner": "string (optional)",           // New owner username
+  "group": "string (optional)",           // New group name
+  "permissions": "string (optional)"      // Octal permissions (e.g., "755")
+}
+```
+
+**Success Response**:
+```json
+{
+  "status": "success",
+  "message": "File moved successfully with ownership changes",
+  "sourcePath": "/tmp/old-location",
+  "destinationPath": "/tmp/new-location",
+  "owner": "www-data",
+  "group": "www-data",
+  "permissions": "755",
+  "timestamp": "2024-01-15T10:30:00.000Z"
+}
+```
+
+**Example**:
+```bash
+curl -X POST http://localhost:3000/api/files/move \
+  -H "x-api-key: your-secret-key-123" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "sourcePath": "/tmp/old-file.txt",
+    "destinationPath": "/tmp/new-file.txt",
+    "owner": "www-data"
+  }'
+```
+
+---
+
+## Error Handling
+
+All endpoints return consistent error responses:
+
+**401 - Missing API Key**:
+```json
+{
+  "error": "API key required",
+  "message": "Provide API key via: x-api-key header, Authorization header, or apiKey query parameter"
+}
+```
+
+**403 - Invalid API Key**:
+```json
+{
+  "error": "Invalid API key",
+  "message": "The provided API key is not valid"
+}
+```
+
+**400 - Bad Request**:
+```json
+{
+  "error": "Validation error message",
+  "details": "Additional error details"
+}
+```
+
+**404 - Not Found**:
+```json
+{
+  "error": "Job not found",
+  "jobId": "missing-job-id"
+}
+```
+
+**409 - Conflict**:
+```json
+{
+  "error": "Job ID already exists",
+  "jobId": "duplicate-id",
+  "message": "Please use a different job ID"
+}
+```
+
+**500 - Internal Server Error**:
+```json
+{
+  "error": "Operation failed",
+  "details": "Error description"
+}
+```
+
+---
+
+## Deployment & Configuration
+
+ Environment Variables
+```env
+PORT=3000
+OUTPUT_PATH=/opt/turboscribe/TurboScribeBot/outputs  # Default output directory
+ENV_FILE_PATH=/opt/turboscribe/TurboScribeBot/.env   # Environment file (email and password for TurboScribe)
+API_KEYS=your-secret-key-123,another-key-456         # API Keys (comma-separated for multiple keys)
+```

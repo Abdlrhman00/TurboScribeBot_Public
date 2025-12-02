@@ -1,0 +1,22 @@
+{
+  "name": "turboscribe-api",
+  "version": "1.0.0",
+  "description": "API for TurboScribeBot Docker management",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "nodemon server.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "cors": "^2.8.5",
+    "dotenv": "^16.3.1",
+    "dockerode": "^3.3.5",
+    "fs-extra": "^11.1.1",
+    "uuid": "^9.0.1",
+    "sqlite3": "^5.1.6"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.1"
+  }
+}

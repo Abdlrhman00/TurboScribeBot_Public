@@ -1,0 +1,176 @@
+Complete TurboScribeBot Deployment Guide for AlmaLinux 8
+
+## Prerequisites
+
+ Required Software Installation
+
+```bash
+# Update system
+sudo dnf update -y
+
+# Install EPEL repository
+sudo dnf install -y epel-release
+
+# Install Docker
+sudo dnf config-manager --add-repo=https://download.docker.com/linux/centos/docker-ce.repo
+sudo dnf install -y docker-ce docker-ce-cli containerd.io
+
+# Start and enable Docker
+sudo systemctl start docker
+sudo systemctl enable docker
+
+# Add user to docker group
+sudo usermod -aG docker $USER
+
+# Install Node.js 18 (using NodeSource)
+curl -fsSL https://rpm.nodesource.com/setup_18.x | sudo bash -
+sudo dnf install -y nodejs
+
+# Install PM2 globally
+sudo npm install -g pm2
+```
+
+ Verify Installations
+```bash
+# Check versions
+docker --version
+node --version
+npm --version
+pm2 --version
+```
+
+## Environment Setup
+
+ 2. Create Configuration Files
+
+**Create credentials .env file:**
+**Content:**
+```env
+EMAIL=your-email@example.com
+PASSWORD=your-password-here
+```
+
+**Create API configuration .env file inside turboscribe-api backend:**
+**Content:**
+```env
+PORT=3000
+OUTPUT_PATH=
+ENV_FILE_PATH=path to credentials .env file
+API_KEYS=your-secret-key-123,another-key-456
+```
+
+## Docker Image Building
+
+ 1. Build Docker Image
+```bash
+# Navigate to your project directory
+cd /path/to/your/TurboScribeBot
+
+# Build the image
+docker build -t abdlrhman00/turboscribe-bot-2:v4.0 .
+
+# Verify the image was created
+docker images | grep turboscribe
+```
+
+## Backend Server Deployment with PM2
+
+ 1. Project Setup
+```bash
+# Navigate to your project directory
+cd /path/to/your/turboscribe-api
+
+# Install project dependencies
+npm install
+
+```
+
+ 2. Create PM2 Configuration File
+Create `turbo.config.js`:
+
+```javascript
+module.exports = {
+  apps: [{
+    name: 'turboscribe-api',
+    script: 'server.js',
+    env: {
+      NODE_ENV: 'production'
+    }
+  }]
+};
+```
+
+ 3. Start Application with PM2
+```bash
+# Start the application
+pm2 start turbo.config.js
+
+# Save PM2 configuration for startup
+pm2 save
+
+# Setup PM2 to start on system boot
+pm2 startup
+```
+
+ 6. Verify Deployment
+```bash
+# Check if application is running
+curl -f http://localhost:3000/health || echo "Service not responding"
+
+# Test with API key
+curl -H "x-api-key: your-secret-key-123" http://localhost:3000/api/status
+
+```
+
+## Docker Commands
+
+ Basic Container Management
+```bash
+# List running containers
+docker ps
+
+# List all containers
+docker ps -a
+
+# Stop container
+docker stop turboscribe-bot
+
+# Start container
+docker start turboscribe-bot
+
+# Restart container
+docker restart turboscribe-bot
+
+# Remove container
+docker rm turboscribe-bot
+
+# List images
+docker images
+
+# Remove image
+docker rmi abdlrhman00/turboscribe-bot-2:v4.0
+
+```
+
+## PM2 Commands
+
+ Basic Process Management
+```bash
+# List all applications
+pm2 list
+
+# Stop application
+pm2 stop turboscribe-api
+
+# Restart application
+pm2 restart turboscribe-api
+
+# Delete application from PM2
+pm2 delete turboscribe-api
+
+# View all logs
+pm2 logs
+
+```
+
+This AlmaLinux 8 specific guide includes all the necessary commands and configurations for your TurboScribeBot deployment.
