@@ -174,6 +174,43 @@ curl -H "x-api-key: your-secret-key-123" http://localhost:3000/health
 
 ### Create a Job
 
+**Request Body**:
+```json
+{
+  "id": "string (required - unique)",              // Custom job ID
+  "output": "string (optional)",          // Custom output directory path
+  "source": "zoom|onedrive (optional)",   // Source type for Zoom/OneDrive workflow
+  
+  // Source workflow parameters (when using source)
+  "link": "string (optional)",            // Source URL
+  "passcode": "string (optional)",        // Zoom recording passcode
+  "withTranscription": "boolean",         // Auto-transcribe after download
+  
+  // Direct transcription parameters (when no source)
+  "link": "string",                       // YouTube/audio/video URL
+  "file": "string",                       // Local file path
+  "language": "string (required)",        // Transcription language (en, ar, etc.)
+  
+  // Transcription options
+  "model": "base|small|large-v2",         // Model size (default: base)
+  
+  // Feature flags
+  "speakers": "number|boolean",           // Speaker recognition (-1 for auto, number for count)
+  "transcribe": "boolean",                // Enable transcription
+  "restore": "boolean",                   // Restore audio quality
+  "timestamps": "boolean",                // Add timestamps to output
+  "shortSummary": "boolean",              // Generate short summary
+  "detailSummary": "boolean",             // Generate detailed summary
+  "translate": "string",                  // Translate to language code
+  "downloadAudio": "boolean",             // Download original audio file
+  
+  // File permissions (applied after job completion)
+  "owner": "string (optional)",           // Set output directory owner
+  "group": "string (optional)",           // Set output directory group
+  "permissions": "string (optional)"      // Octal permissions (e.g., "755")
+}
+```
+
 ```bash
 curl -X POST http://localhost:3000/api/jobs \
   -H "x-api-key: your-secret-key-123" \
